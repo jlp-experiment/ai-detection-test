@@ -163,48 +163,6 @@
             return text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
           };
 
-          const saveResults = async () => {
-            setSaving(true);
-            try {
-              const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js');
-              
-              const correctCount = responses.filter((r) => {
-                const sample = testSamples.find(s => s.id === r.sampleId);
-                return sample && ((r.guess === 'AI' && sample.isAI) || (r.guess === 'Human' && !sample.isAI));
-              }).length;
-
-              const resultData = {
-                timestamp: new Date().toISOString(),
-                group: group,
-                demographics: demographics,
-                primingSamples: group === 'experimental' ? primingSamples.map(s => ({
-                  id: s.id,
-                  familyId: s.familyId,
-                  description: s.description,
-                  isAI: s.isAI
-                })) : [],
-                testSamples: testSamples.map(s => ({
-                  id: s.id,
-                  familyId: s.familyId,
-                  description: s.description,
-                  isAI: s.isAI
-                })),
-                responses: responses,
-                favoriteId: favoriteId,
-                favoriteSample: testSamples.find(s => s.id === favoriteId),
-                accuracy: correctCount / testSamples.length,
-                correctCount: correctCount,
-                totalSamples: testSamples.length
-              };
-
-              await addDoc(collection(window.db, 'test_results'), resultData);
-              setSaving(false);
-            } catch (err) {
-              console.error('Error saving results:', err);
-              setSaving(false);
-            }
-          };
-
           const handleDemographicChange = (field, value) => {
             setDemographics(prev => ({ ...prev, [field]: value }));
           };
