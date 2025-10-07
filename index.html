@@ -120,7 +120,13 @@
                   const sample12 = data.find(s => s.id === 12);
                   setPrimingSamples([sample1, sample12]);
                   
-                  const availableSamples = data.filter(s => s.id !== 1 && s.id !== 12);
+                  // Exclude samples with id 1, 12 AND their family members (family1 and family9)
+                  const availableSamples = data.filter(s => 
+                    s.id !== 1 && 
+                    s.id !== 12 && 
+                    s.familyId !== 'family1' && 
+                    s.familyId !== 'family9'
+                  );
                   const selectedSamples = selectSamplesNoFamilyDuplicates(availableSamples, 3);
                   setTestSamples(selectedSamples);
                   setCurrentStage('priming');
@@ -163,6 +169,48 @@
             return text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
           };
 
+          const saveResults = async () => {
+            setSaving(true);
+            try {
+              const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js');
+              
+              const correctCount = responses.filter((r) => {
+                const sample = testSamples.find(s => s.id === r.sampleId);
+                return sample && ((r.guess === 'AI' && sample.isAI) || (r.guess === 'Human' && !sample.isAI));
+              }).length;
+
+              const resultData = {
+                timestamp: new Date().toISOString(),
+                group: group,
+                demographics: demographics,
+                primingSamples: group === 'experimental' ? primingSamples.map(s => ({
+                  id: s.id,
+                  familyId: s.familyId,
+                  description: s.description,
+                  isAI: s.isAI
+                })) : [],
+                testSamples: testSamples.map(s => ({
+                  id: s.id,
+                  familyId: s.familyId,
+                  description: s.description,
+                  isAI: s.isAI
+                })),
+                responses: responses,
+                favoriteId: favoriteId,
+                favoriteSample: testSamples.find(s => s.id === favoriteId),
+                accuracy: correctCount / testSamples.length,
+                correctCount: correctCount,
+                totalSamples: testSamples.length
+              };
+
+              await addDoc(collection(window.db, 'test_results'), resultData);
+              setSaving(false);
+            } catch (err) {
+              console.error('Error saving results:', err);
+              setSaving(false);
+            }
+          };
+
           const handleDemographicChange = (field, value) => {
             setDemographics(prev => ({ ...prev, [field]: value }));
           };
@@ -187,6 +235,8 @@
           const handlePrimingNext = () => {
             if (currentSampleIndex < primingSamples.length - 1) {
               setCurrentSampleIndex(prev => prev + 1);
+              // Scroll to top of page
+              window.scrollTo(0, 0);
             } else {
               setCurrentStage('testing');
               setCurrentSampleIndex(0);
@@ -195,6 +245,7 @@
                 guess: null,
                 certainty: null
               });
+              window.scrollTo(0, 0);
             }
           };
 
@@ -208,8 +259,11 @@
                 guess: null,
                 certainty: null
               });
+              // Scroll to top of page
+              window.scrollTo(0, 0);
             } else {
               setStage('favorite');
+              window.scrollTo(0, 0);
             }
           };
 
@@ -261,7 +315,7 @@
                     <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">How it works:</h2>
                     <ol className="text-gray-700 space-y-2">
                       <li>Read 3-5 novel opening chapters (600-1500 words each).</li>
-                      <li>For each sample, guess whether it was written by AI or a human. NOTE: Samples might be all AI or all human.</li>
+                      <li>For each sample, guess whether it was written by AI or a human.</li>
                       <li>Rate your certainty from 1 (least certain) to 5 (most certain).</li>
                       <li>After you read all the samples, select which one you enjoyed most.</li>
                       <li>See the results and which samples were actually AI-generated and which were human-written.</li>
@@ -443,20 +497,9 @@
               <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
                 <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8">
                   <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        Sample {currentSampleIndex + 1} of {testSamples.length}
-                      </h2>
-                      <div className="text-sm text-gray-600">
-                        Progress: {Math.round(((currentSampleIndex + 1) / testSamples.length) * 100)}%
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-indigo-600 h-2 rounded-full transition-all"
-                        style={{ width: `${((currentSampleIndex + 1) / testSamples.length) * 100}%` }}
-                      ></div>
-                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Sample {currentSampleIndex + 1} of {testSamples.length}
+                    </h2>
                   </div>
 
                   <div className="prose prose-lg max-w-none mb-8 p-6 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
