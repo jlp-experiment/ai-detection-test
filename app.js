@@ -258,11 +258,11 @@ const FictionDetectionTest = () => {
             
             <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">How it works:</h2>
             <ol className="text-gray-700 space-y-2">
-              <li>You'll read 3-5 opening chapters from various novels (600-1500 words each).</li>
+              <li>Read 3-5 novel opening chapters (600-1500 words each).</li>
               <li>For each sample, guess whether it was written by AI or a human.</li>
               <li>Rate your certainty from 1 (least certain) to 5 (most certain).</li>
-              <li>After all samples, select which one you enjoyed most.</li>
-              <li>See the results and which samples were actually AI vs. human.</li>
+              <li>After you read all the samples, select which one you enjoyed most.</li>
+              <li>See the results and which samples were actually AI-generated and which were human-written.</li>
             </ol>
           </div>
 
