@@ -62,6 +62,7 @@
           const [loading, setLoading] = useState(false);
           const [error, setError] = useState(null);
           const [saving, setSaving] = useState(false);
+          const textContainerRef = React.useRef(null);
 
           const saveResults = async () => {
             setSaving(true);
@@ -169,6 +170,48 @@
             return text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
           };
 
+          const saveResults = async () => {
+            setSaving(true);
+            try {
+              const { collection, addDoc } = await import('https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js');
+              
+              const correctCount = responses.filter((r) => {
+                const sample = testSamples.find(s => s.id === r.sampleId);
+                return sample && ((r.guess === 'AI' && sample.isAI) || (r.guess === 'Human' && !sample.isAI));
+              }).length;
+
+              const resultData = {
+                timestamp: new Date().toISOString(),
+                group: group,
+                demographics: demographics,
+                primingSamples: group === 'experimental' ? primingSamples.map(s => ({
+                  id: s.id,
+                  familyId: s.familyId,
+                  description: s.description,
+                  isAI: s.isAI
+                })) : [],
+                testSamples: testSamples.map(s => ({
+                  id: s.id,
+                  familyId: s.familyId,
+                  description: s.description,
+                  isAI: s.isAI
+                })),
+                responses: responses,
+                favoriteId: favoriteId,
+                favoriteSample: testSamples.find(s => s.id === favoriteId),
+                accuracy: correctCount / testSamples.length,
+                correctCount: correctCount,
+                totalSamples: testSamples.length
+              };
+
+              await addDoc(collection(window.db, 'test_results'), resultData);
+              setSaving(false);
+            } catch (err) {
+              console.error('Error saving results:', err);
+              setSaving(false);
+            }
+          };
+
           const handleDemographicChange = (field, value) => {
             setDemographics(prev => ({ ...prev, [field]: value }));
           };
@@ -193,8 +236,6 @@
           const handlePrimingNext = () => {
             if (currentSampleIndex < primingSamples.length - 1) {
               setCurrentSampleIndex(prev => prev + 1);
-              // Scroll to top of page
-              window.scrollTo(0, 0);
             } else {
               setCurrentStage('testing');
               setCurrentSampleIndex(0);
@@ -203,8 +244,14 @@
                 guess: null,
                 certainty: null
               });
-              window.scrollTo(0, 0);
             }
+            // Scroll to top after state updates
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+              if (textContainerRef.current) {
+                textContainerRef.current.scrollTop = 0;
+              }
+            }, 0);
           };
 
           const handleTestingNext = () => {
@@ -217,12 +264,16 @@
                 guess: null,
                 certainty: null
               });
-              // Scroll to top of page
-              window.scrollTo(0, 0);
             } else {
               setStage('favorite');
-              window.scrollTo(0, 0);
             }
+            // Scroll to top after state updates
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+              if (textContainerRef.current) {
+                textContainerRef.current.scrollTop = 0;
+              }
+            }, 0);
           };
 
           const handleFavoriteSelect = async () => {
@@ -428,7 +479,7 @@
                     </div>
                   </div>
 
-                  <div className="prose prose-lg max-w-none mb-8 p-6 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
+                  <div ref={textContainerRef} className="prose prose-lg max-w-none mb-8 p-6 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
                     {currentSample.text.split('\n').map((paragraph, idx) => (
                       <p key={idx} className="mb-4 text-gray-800 whitespace-pre-wrap" 
                          dangerouslySetInnerHTML={{ __html: formatText(paragraph) }}>
@@ -460,7 +511,7 @@
                     </h2>
                   </div>
 
-                  <div className="prose prose-lg max-w-none mb-8 p-6 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
+                  <div ref={textContainerRef} className="prose prose-lg max-w-none mb-8 p-6 bg-gray-50 rounded-lg max-h-96 overflow-y-auto">
                     {currentSample.text.split('\n').map((paragraph, idx) => (
                       <p key={idx} className="mb-4 text-gray-800 whitespace-pre-wrap"
                          dangerouslySetInnerHTML={{ __html: formatText(paragraph) }}>
