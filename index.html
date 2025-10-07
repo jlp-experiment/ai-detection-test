@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI vs Human Fiction Test</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Load samples data first -->
+  <script>
+    fetch('samples.json')
+      .then(response => response.json())
+      .then(data => {
+        window.samplesData = data;
+        // Initialize the React app after samples are loaded
+        initializeApp();
+      })
+      .catch(error => {
+        console.error('Error loading samples:', error);
+        document.getElementById('root').innerHTML = '<div class="min-h-screen flex items-center justify-center bg-red-50"><div class="text-center"><h1 class="text-2xl font-bold text-red-600 mb-4">Error Loading Samples</h1><p class="text-red-800">Please make sure samples.json is in the same directory as this file.</p></div></div>';
+      });
+  </script>
+  
+  <!-- React and Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Lucide React Icons -->
+  <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
+  
+  <!-- Main Application -->
+  <script type="text/babel">
+    const { useState } = React;
+    const { ChevronRight, CheckCircle } = lucide;
+
+    // In production, this would be imported from samples.json
+    // For now, we'll use window.samplesData which is loaded before this script runs
+    const SAMPLES_DATA = window.samplesData || [];
+
+    const FictionTest = () => {
+      const allSamples = SAMPLES_DATA;
+
+      const [stage, setStage] = useState('welcome');
+      const [currentSample, setCurrentSample] = useState(0);
+      const [currentTrainingSample, setCurrentTrainingSample] = useState(0);
+      const [demographics, setDemographics] = useState({
+        age: '',
+        gender: '',
+        isProfessional: '',
+        readingAmount: ''
+      });
+      const [responses, setResponses] = useState([]);
+      const [currentResponse, setCurrentResponse] = useState({
+        type: null,
+        certainty: null
+      });
+      const [favoriteSample, setFavoriteSample] = useState(null);
+      
+      // Randomly assign to control or experimental group
+      const [isExperimental] = useState(() => Math.random() < 0.5);
+      
+      // Training samples for experimental group
+      const trainingSamples = [
+        allSamples.find(s => s.id === 1), // Human sample
+        allSamples.find(s => s.id === 12)  // AI sample
+      ];
+
+      // Select 3 random samples ensuring no family conflicts
+      const [samples] = useState(() => {
+        // Exclude samples 1 and 12 if in experimental group
+        const availableSamples = isExperimental 
+          ? allSamples.filter(s => s.id !== 1 && s.id !== 12)
+          : allSamples;
+        
+        const shuffled = [...availableSamples].sort(() => Math.random() - 0.5);
+        const selected = [];
+        const usedFamilies = new Set();
+        
+        for (const sample of shuffled) {
+          // Skip if we already have a sample from this family
+          if (usedFamilies.has(sample.familyId)) {
+            continue;
+          }
+          
+          selected.push(sample);
+          usedFamilies.add(sample.familyId);
+          
+          // Stop once we have 3 samples
+          if (selected.length === 3) {
+            break;
+          }
+        }
+        
+        return selected;
+      });
+      
+      const [sampleOrder] = useState(samples.map(s => s.id));
+
+      // Helper function to format text with italics
+      const formatText = (text) => {
+        const parts = text.split(/(\*[^*]+\*)/g);
+        return parts.map((part, index) => {
+          if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={index}>{part.slice(1, -1)}</em>;
+          }
+          return part;
+        });
+      };
+
+      const handleDemographicChange = (field, value) => {
+        setDemographics({ ...demographics, [field]: value });
+      };
+
+      const handleStartTest = () => {
+        if (demographics.age && demographics.gender && demographics.isProfessional && demographics.readingAmount) {
+          if (isExperimental) {
+            setStage('training');
+          } else {
+            setStage('sample');
+          }
+        } else {
+          alert('Please complete all demographic questions before starting.');
+        }
+      };
+
+      const handleNextTrainingSample = () => {
+        if (currentTrainingSample < trainingSamples.length - 1) {
+          setCurrentTrainingSample(currentTrainingSample + 1);
+        } else {
+          setStage('sample');
+        }
+      };
+
+      const handleResponseChange = (field, value) => {
+        setCurrentResponse({ ...currentResponse, [field]: value });
+      };
+
+      const handleNextSample = () => {
+        if (currentResponse.type && currentResponse.certainty) {
+          const newResponses = [...responses, {
+            sampleId: samples[currentSample].id,
+            ...currentResponse
+          }];
+          setResponses(newResponses);
+          setCurrentResponse({ type: null, certainty: null });
+
+          if (currentSample < samples.length - 1) {
+            setCurrentSample(currentSample + 1);
+          } else {
+            setStage('favorite');
+          }
+        } else {
+          alert('Please select both AI/Human and a certainty rating before continuing.');
+        }
+      };
+
+      const handleFavoriteSelect = () => {
+        if (favoriteSample !== null) {
+          // Here's where you'd send data to your server
+          const finalData = {
+            demographics,
+            responses,
+            favoriteSample,
+            samplesShown: sampleOrder,
+            isExperimental,
+            timestamp: new Date().toISOString()
+          };
+          console.log('Data to submit:', finalData);
+          // TODO: Send finalData to your backend/database
+          setStage('results');
+        } else {
+          alert('Please select your favorite sample.');
+        }
+      };
+
+      if (stage === 'welcome') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 mt-12">
+              <h1 className="text-4xl font-bold text-slate-800 mb-6">AI vs Human Fiction Test</h1>
+              
+              <div className="prose prose-slate max-w-none mb-8">
+                <h2 className="text-2xl font-semibold text-slate-700 mb-4">Welcome!</h2>
+                <p className="text-slate-600 mb-4">
+                  Can you tell the difference between fiction written by humans and fiction generated by AI?
+                </p>
+                
+                <h3 className="text-xl font-semibold text-slate-700 mb-3">How it works:</h3>
+                <ol className="text-slate-600 space-y-2 mb-6">
+                  <li>You'll read 3 short opening chapters from novels (600-1500 words each)</li>
+                  <li>For each sample, you'll indicate whether you think it was written by AI or a human</li>
+                  <li>You'll also rate your certainty on a scale of 1-5 (1 = least certain, 5 = most certain)</li>
+                  <li>After rating all samples, you'll choose which one you enjoyed most</li>
+                  <li>Finally, we'll reveal which samples were AI-generated and which were human-written</li>
+                </ol>
+
+                <p className="text-slate-600 mb-6">
+                  This should take approximately 15-20 minutes to complete.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setStage('demographics')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+              >
+                Begin <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      if (stage === 'demographics') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8 mt-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-6">Before We Begin</h2>
+              <p className="text-slate-600 mb-8">Please answer a few quick questions about yourself:</p>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-slate-700 font-medium mb-2">Age Range</label>
+                  <select
+                    value={demographics.age}
+                    onChange={(e) => handleDemographicChange('age', e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select age range</option>
+                    <option value="under-18">Under 18</option>
+                    <option value="18-24">18-24</option>
+                    <option value="25-34">25-34</option>
+                    <option value="35-44">35-44</option>
+                    <option value="45-54">45-54</option>
+                    <option value="55-64">55-64</option>
+                    <option value="65+">65+</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-medium mb-2">Gender</label>
+                  <select
+                    value={demographics.gender}
+                    onChange={(e) => handleDemographicChange('gender', e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="non-binary">Non-binary</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-medium mb-2">
+                    Are you a professional writer, editor, teacher, critic, or otherwise someone who professionally critiques writing quality?
+                  </label>
+                  <select
+                    value={demographics.isProfessional}
+                    onChange={(e) => handleDemographicChange('isProfessional', e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select an option</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-medium mb-2">
+                    Roughly how much fiction do you read per month? (books, comic books, short stories, etc.)
+                  </label>
+                  <select
+                    value={demographics.readingAmount}
+                    onChange={(e) => handleDemographicChange('readingAmount', e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select an option</option>
+                    <option value="0-2">0-2 books (or equivalent)</option>
+                    <option value="3-5">3-5 books (or equivalent)</option>
+                    <option value="6+">6+ books (or equivalent)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={handleStartTest}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition mt-8 flex items-center justify-center gap-2"
+              >
+                Start Test <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      if (stage === 'training') {
+        const currentTraining = trainingSamples[currentTrainingSample];
+        const isHuman = currentTraining.id === 1;
+        
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg shadow-lg p-8 mt-6">
+                <div className="mb-6">
+                  <div className="bg-blue-50 border-l-4 border-blue-600 p-4 mb-6">
+                    <h3 className="font-semibold text-blue-900 mb-2">Training Sample {currentTrainingSample + 1} of 2</h3>
+                    <p className="text-blue-800">
+                      This sample was written by {isHuman ? 'a human' : 'AI'}. Please read it carefully to familiarize yourself with the style.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="prose prose-slate max-w-none mb-8">
+                  <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 whitespace-pre-wrap font-serif text-lg leading-relaxed">
+                    {currentTraining.text.split('\n').map((paragraph, idx) => (
+                      paragraph.trim() ? <p key={idx} className="mb-4">{formatText(paragraph)}</p> : null
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t pt-6">
+                  <div className="bg-slate-50 p-4 rounded-lg mb-6">
+                    <p className="text-slate-700">
+                      <span className="font-semibold">Remember:</span> This was written by {isHuman ? 'a human' : 'AI'}.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleNextTrainingSample}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    {currentTrainingSample < trainingSamples.length - 1 ? 'Next Training Sample' : 'Begin Test'} <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (stage === 'sample') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg shadow-lg p-8 mt-6">
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-slate-600 font-medium">Sample {currentSample + 1} of {samples.length}</span>
+                    <span className="text-slate-600">{Math.round(((currentSample + 1) / samples.length) * 100)}% Complete</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${((currentSample + 1) / samples.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="prose prose-slate max-w-none mb-8">
+                  <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 whitespace-pre-wrap font-serif text-lg leading-relaxed">
+                    {samples[currentSample].text.split('\n').map((paragraph, idx) => (
+                      paragraph.trim() ? <p key={idx} className="mb-4">{formatText(paragraph)}</p> : null
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-6 border-t pt-6">
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-3">
+                      Do you think this was written by AI or a human?
+                    </label>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => handleResponseChange('type', 'AI')}
+                        className={`flex-1 py-3 px-6 rounded-lg font-medium transition ${
+                          currentResponse.type === 'AI'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        AI
+                      </button>
+                      <button
+                        onClick={() => handleResponseChange('type', 'Human')}
+                        className={`flex-1 py-3 px-6 rounded-lg font-medium transition ${
+                          currentResponse.type === 'Human'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        Human
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-3">
+                      How certain are you? (1 = least certain, 5 = most certain)
+                    </label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => handleResponseChange('certainty', num)}
+                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition ${
+                            currentResponse.certainty === num
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleNextSample}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    {currentSample < samples.length - 1 ? 'Next Sample' : 'Continue to Final Question'} <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (stage === 'favorite') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 mt-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-6">One Last Question</h2>
+              <p className="text-slate-600 mb-8">Which sample did you enjoy reading the most?</p>
+
+              <div className="space-y-4">
+                {samples.map((sample, index) => (
+                  <button
+                    key={sample.id}
+                    onClick={() => setFavoriteSample(sample.id)}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition ${
+                      favoriteSample === sample.id
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-1 ${favoriteSample === sample.id ? 'text-blue-600' : 'text-slate-300'}`}>
+                        <CheckCircle size={20} />
+                      </div>
+                      <div>
+                        <div className="font-medium text-slate-700 mb-1">Sample {index + 1}</div>
+                        <div className="text-slate-600">{sample.description}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handleFavoriteSelect}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition mt-8 flex items-center justify-center gap-2"
+              >
+                See Results <ChevronRight size={20} />
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      if (stage === 'results') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 mt-12">
+              <h2 className="text-3xl font-bold text-slate-800 mb-6">Results</h2>
+              
+              <div className="space-y-6">
+                {samples.map((sample, index) => {
+                  const userResponse = responses.find(r => r.sampleId === sample.id);
+                  const wasCorrect = (userResponse.type === 'AI' && sample.isAI) || 
+                                    (userResponse.type === 'Human' && !sample.isAI);
+                  
+                  return (
+                    <div key={sample.id} className="border border-slate-200 rounded-lg p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="font-semibold text-slate-800 text-lg">Sample {index + 1}</h3>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          wasCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {wasCorrect ? 'Correct' : 'Incorrect'}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 mb-3">{sample.description}</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-500">Your answer:</span>
+                          <span className="ml-2 font-medium text-slate-700">{userResponse.type}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Certainty:</span>
+                          <span className="ml-2 font-medium text-slate-700">{userResponse.certainty}/5</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-slate-500">Actually:</span>
+                          <span className="ml-2 font-medium text-slate-700">{sample.isAI ? 'AI' : 'Human'}</span>
+                        </div>
+                      </div>
+                      {favoriteSample === sample.id && (
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <span className="text-blue-600 font-medium">⭐ Your favorite</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 p-6 bg-slate-50 rounded-lg border border-slate-200">
+                <h3 className="font-semibold text-slate-800 mb-2">Your Score</h3>
+                <p className="text-2xl font-bold text-blue-600">
+                  {responses.filter((r, i) => (r.type === 'AI' && samples[i].isAI) || (r.type === 'Human' && !samples[i].isAI)).length} 
+                  {' '}out of {samples.length} correct
+                </p>
+              </div>
+
+              <p className="text-center text-slate-600 mt-8">
+                Thank you for participating! Your responses have been recorded.
+              </p>
+            </div>
+          </div>
+        );
+      }
+    };
+
+    // Initialize the app after samples are loaded
+    function initializeApp() {
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<FictionTest />);
+    }
+  </script>
+</body>
+</html>
