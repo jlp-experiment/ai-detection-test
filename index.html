@@ -117,22 +117,25 @@
                 setGroup(assignedGroup);
                 
                 if (assignedGroup === 'experimental') {
-                  const sample1 = data.find(s => s.id === 1);
+                  const sample2 = data.find(s => s.id === 2);
                   const sample12 = data.find(s => s.id === 12);
-                  setPrimingSamples([sample1, sample12]);
+                  setPrimingSamples([sample2, sample12]);
                   
-                  // Exclude samples with id 1, 12 AND their family members (family1 and family9)
+                  // Exclude samples with id 2, 12 AND their family members (family2 and family9)
                   const availableSamples = data.filter(s => 
-                    s.id !== 1 && 
+                    s.id !== 2 && 
                     s.id !== 12 && 
-                    s.familyId !== 'family1' && 
+                    s.familyId !== 'family2' && 
                     s.familyId !== 'family9'
                   );
+                    
                   const selectedSamples = selectSamplesNoFamilyDuplicates(availableSamples, 3);
                   setTestSamples(selectedSamples);
                   setCurrentStage('priming');
                 } else {
-                  const selectedSamples = selectSamplesNoFamilyDuplicates(data, 3);
+                  // Exclude family2 samples for control group too
+                  const availableSamples = data.filter(s => s.familyId !== 'family2');
+                  const selectedSamples = selectSamplesNoFamilyDuplicates(availableSamples, 3);
                   setTestSamples(selectedSamples);
                   setCurrentStage('testing');
                 }
