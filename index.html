@@ -656,11 +656,11 @@
                                 {isCorrect ? '✓ Correct' : '✗ Incorrect'}
                               </div>
                             </div>
-                            <div className="flex gap-4 text-sm">
+                            <div className="flex flex-wrap gap-4 text-sm">
                               <div>
                                 <span className="font-medium">Actually:</span>{' '}
                                 <span className={sample.isAI ? 'text-purple-700' : 'text-blue-700'}>
-                                  {sample.isAI ? 'AI Generated' : 'Human Written'}
+                                  {sample.writingtype || (sample.isAI ? 'AI Generated' : 'Human Written')}
                                 </span>
                               </div>
                               <div>
@@ -813,3 +813,4 @@
     </script>
 </body>
 </html>
+
