@@ -674,15 +674,6 @@
                         );
                       })}
                     </div>
-
-                    {favoriteSample && (
-                      <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                        <h3 className="font-semibold text-gray-900 mb-2">My Favorite Sample:</h3>
-                        <p className="text-gray-700">
-                          I enjoyed {favoriteSample.isAI ? 'an AI-generated' : 'a human-written'} sample most!
-                        </p>
-                      </div>
-                    )}
                     
                     <div className="mt-6">
                       <button
@@ -777,11 +768,6 @@
                               <span className="font-medium">Certainty:</span> {response?.certainty}/5
                             </div>
                           </div>
-                          {sample.id === favoriteId && (
-                            <div className="mt-2 text-sm font-medium text-indigo-600">
-                              ⭐ Your favorite
-                            </div>
-                          )}
                         </div>
                       );
                     })}
@@ -803,4 +789,3 @@
     </script>
 </body>
 </html>
-
