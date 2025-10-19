@@ -62,7 +62,9 @@
           const [loading, setLoading] = useState(false);
           const [error, setError] = useState(null);
           const [saving, setSaving] = useState(false);
+          const [showSharingResults, setShowSharingResults] = useState(false);
           const textContainerRef = React.useRef(null);
+          const funVersionUrl = "https://jlp-experiment.github.io/ai-detection-test-for-fun/";
 
           const saveResults = async () => {
             setSaving(true);
@@ -241,6 +243,10 @@
             setStage('results');
             await saveResults();
           };
+          
+          const toggleSharingResults = () => {
+            setShowSharingResults(!showSharingResults);
+          };
 
           const canSubmitResponse = currentResponse.guess && currentResponse.certainty;
 
@@ -271,6 +277,15 @@
             return (
               <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
                 <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8">
+                  {/* New banner for instruction page */}
+                  <div className="mb-6 bg-red-100 border-l-4 border-red-500 p-4 rounded">
+                    <p className="text-red-700">
+                      <strong>Please do not take this version of the test multiple times</strong> (it will skew the results). 
+                      If you'd like to take it again (with more samples!), please take the 'for fun' version{' '}
+                      <a href={funVersionUrl} className="text-red-700 underline font-bold" target="_blank" rel="noopener noreferrer">here</a>.
+                    </p>
+                  </div>
+                  
                   <div className="flex items-center gap-3 mb-6">
                     <span className="text-4xl">📚</span>
                     <h1 className="text-3xl font-bold text-gray-900">AI vs. Human Fiction Test</h1>
@@ -607,9 +622,117 @@
 
             const favoriteSample = testSamples.find(s => s.id === favoriteId);
 
+            // Results for sharing view (stripped of sensitive info)
+            if (showSharingResults) {
+              return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+                  <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">My AI vs Human Fiction Test Results</h2>
+                    <p className="text-xl text-gray-700 mb-8">
+                      I correctly identified {correctCount} out of {testSamples.length} samples
+                      ({Math.round((correctCount / testSamples.length) * 100)}% accuracy)!
+                    </p>
+
+                    <div className="space-y-4 mb-8">
+                      {testSamples.map((sample, idx) => {
+                        const response = responses.find(r => r.sampleId === sample.id);
+                        const isCorrect = response && (
+                          (response.guess === 'AI' && sample.isAI) || 
+                          (response.guess === 'Human' && !sample.isAI)
+                        );
+
+                        return (
+                          <div
+                            key={sample.id}
+                            className={`p-4 rounded-lg border-2 ${
+                              isCorrect ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="font-semibold text-gray-900">Sample {idx + 1}</div>
+                              <div className={`px-3 py-1 rounded text-sm font-medium ${
+                                isCorrect ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'
+                              }`}>
+                                {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                              </div>
+                            </div>
+                            <div className="flex gap-4 text-sm">
+                              <div>
+                                <span className="font-medium">Actually:</span>{' '}
+                                <span className={sample.isAI ? 'text-purple-700' : 'text-blue-700'}>
+                                  {sample.isAI ? 'AI Generated' : 'Human Written'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="font-medium">Your guess:</span> {response?.guess}
+                              </div>
+                              <div>
+                                <span className="font-medium">Certainty:</span> {response?.certainty}/5
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {favoriteSample && (
+                      <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                        <h3 className="font-semibold text-gray-900 mb-2">My Favorite Sample:</h3>
+                        <p className="text-gray-700">
+                          I enjoyed {favoriteSample.isAI ? 'an AI-generated' : 'a human-written'} sample most!
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="mt-6">
+                      <button
+                        onClick={() => setShowSharingResults(false)}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-md text-white font-medium bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        Back to Detailed Results
+                        <span>↩</span>
+                      </button>
+                    </div>
+                    
+                    <div className="mt-6 text-center text-sm text-gray-500">
+                      Want to test your own ability to detect AI fiction? Take the test at{' '}
+                      <a href={funVersionUrl} className="text-indigo-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                        {funVersionUrl}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Detailed results with all information
             return (
               <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
                 <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8">
+                  {/* Red banner for results page */}
+                  <div className="mb-6 bg-red-100 border-l-4 border-red-500 p-4 rounded">
+                    <p className="text-red-700">
+                      <strong>As a reminder, please do not retake this version of the test.</strong> If you'd like to try again, 
+                      please take the 'for fun' version{' '}
+                      <a href={funVersionUrl} className="text-red-700 underline font-bold" target="_blank" rel="noopener noreferrer">here</a>.
+                    </p>
+                  </div>
+                  
+                  {/* Yellow banner for screenshot warning */}
+                  <div className="mb-6 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded">
+                    <p className="text-yellow-700">
+                      <strong>Please do not screenshot this page.</strong> It identifies which samples are AI and which are human. 
+                      If you'd like a version of your results that doesn't give away the answers to screenshot and post on social media, 
+                      please click the button below.
+                    </p>
+                    <button
+                      onClick={toggleSharingResults}
+                      className="mt-3 px-4 py-2 bg-yellow-500 text-white font-medium rounded hover:bg-yellow-600 transition-colors"
+                    >
+                      RESULTS FOR SHARING
+                    </button>
+                  </div>
+
                   <h2 className="text-3xl font-bold text-gray-900 mb-2">Results</h2>
                   <p className="text-xl text-gray-700 mb-8">
                     You correctly identified {correctCount} out of {testSamples.length} samples
